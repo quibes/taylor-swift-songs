@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taylor Swift Analysis Blog</title>
+    <!-- Link to Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply the background image */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: url('https://raw.githubusercontent.com/quibes/taylor-swift-songs/refs/heads/main/eo2hdnuqbzc51.webp') no-repeat center center fixed;
+            background-size: cover;
+            margin: 0;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* Style the container */
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            background: rgba(255, 255, 255, 0.9); /* Slight white overlay for readability */
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3 {
+            color: #444;
+            font-weight: 700; /* Bold font for headings */
+        }
+
+        p, li {
+            font-weight: 400; /* Normal font for paragraphs and list items */
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 5px;
+            margin-bottom: 1.5rem;
+            font-family: 'Courier New', monospace; /* Keep monospaced font for code blocks */
+        }
+
+        code {
+            color: #c7254e;
+            background-color: #f9f2f4;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace; /* Monospaced font for inline code */
+        }
+
+        img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+
+        ul {
+            margin: 1rem 0;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Taylor Swift: Artist of the Year</h1>
+            <div class="github-link">
+                <p>
+                    Check out the full project on GitHub:
+                    <a href="https://github.com/quibes/taylor-swift-songs" target="_blank">Taylor Swift Songs Repository</a>
+                </p>
+            </div>
+        </header>
+        <section>
+            <p>
+                Taylor Swift has been my Artist of the Year for the past three years. She is an incredible songwriter, and that's why I would like to investigate her art in my project. 
+            </p>
+        </section>
+        <section>
+            <h2>Project Overview</h2>
+            <p>
+                My project aims to investigate Taylor Swift's songs, era by era. Now considered one of the most accomplished artists in the industry, Taylor Swift has been a performer and songwriter for 16 years, continually changing genres and approaches throughout her career. I will use Amazon Comprehend to analyze the sentiment and key phrases in her songs. Let's dive into the step-by-step process of this analysis.
+            </p>
+        </section>
+           <section>
+            <h2>Step 1: Data Collection</h2>
+            <p>
+                Lyrics are protected by copyright law, so scrapping them from websites can be hard. I chose the Azlyrics website, as it has quite simple navigation through lyrics and keeps the information about all the songs Taylor sang (such as her SNL monologue or remixes for her songs).
+            </p>
+            <pre>
+<code>
+from bs4 import BeautifulSoup
+import requests
+
+url = 'https://www.azlyrics.com/t/taylorswift.html'
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'html.parser')
+
+songs = []
+song_list = soup.find_all('div', class_='listalbum-item')
+
+for song in song_list:
+    anchor = song.find('a')
+    if anchor:
+        songs.append({
+            'title': anchor.text.strip(),
+            'url': anchor['href'].strip()
+        })
+</code>
+            </pre>
+        </section>
+        <section>
+            <h2>Step 2: Uploading Data to AWS S3</h2>
+            <pre>
+<code>
+# Create an S3 client
+s3 = boto3.client('s3')
+
+# Create a local directory to store temp files before upload
+os.makedirs(temp_dir, exist_ok=True)
+
+# Iterate over each song and store its lyrics as a text file
+for song_title, lyrics in songs_lyrics.items():
+    # Create a filename based on the song title (replace spaces with underscores)
+    filename = os.path.join(temp_dir, f"{song_title.replace(' ', '_')}.txt")
+    
+    # Write the lyrics to a local file
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(lyrics)
+    
+    # Upload the file to S3
+    object_key = f"taylor_swift_lyrics/{song_title.replace(' ', '_')}.txt"
+    s3.upload_file(filename, bucket_name, object_key)
+    print(f"Uploaded {song_title} to s3://{bucket_name}/{object_key}")
+
+print("All songs uploaded successfully.")
+</code>
+            </pre>
+        </section>
+        <section>
+            <h2>Step 3: Analyze Lyrics with AWS Comprehend</h2>
+            <h3>Sentiment Analysis</h3>
+            <p>
+                Using AWS Comprehend, I analyzed the sentiment of each song, categorizing it as Positive, Negative, Neutral, or Mixed. Sentiment scores were also saved for each song.
+            </p>
+            <pre>
+<code>
+# Detect sentiment
+sentiment_response = comprehend.detect_sentiment(Text=lyrics_text, LanguageCode='en')
+sentiment = sentiment_response['Sentiment']
+sentiment_scores = sentiment_response['SentimentScore']
+</code>
+            </pre>
+            <h3>Key Phrase Detection</h3>
+            <p>
+                Key phrases in each song were extracted to catch themes that recur through different eras.
+            </p>
+            <pre>
+<code>
+key_phrases_response = comprehend.detect_key_phrases(Text=lyrics_text, LanguageCode='en')
+key_phrases = [kp['Text'] for kp in key_phrases_response['KeyPhrases']]
+</code>
+            </pre>
+            <h3>Entity Detection</h3>
+            <p>Entities such as people, places, and events were specified for each song.</p>
+            <pre>
+<code>
+# Detect entities
+entities_response = comprehend.detect_entities(Text=lyrics_text, LanguageCode='en')
+entities = [(ent['Text'], ent['Type']) for ent in entities_response['Entities']]
+</code>
+            </pre>
+        </section>
+        <section>
+        <section>
+            <h2>Step 4: Visualization and Insights</h2>
+            <h3>Sentiment Distribution</h3>
+            <p>
+                I visualized the distribution of sentiments across all songs. Overall, there is more positive sentiment in the songs (about 110) than negative (around 90).
+            </p>
+            <img src="https://github.com/quibes/taylor-swift-songs/blob/db5f6cd7dfdbaa55e4b67eb369579caef880515a/distribution.png?raw=true" alt="Sentiment Distribution Chart">
+            
+            <h3>Key Phrases</h3>
+            <p>
+                The top 5 key phrases are love, baby, the one, mine, and Ooh, that speaks of the recurring themes of the songs. Also, New York is in the top 20 phrases, which shows how much the locations affects her art.             </p>
+            <img src="https://github.com/quibes/taylor-swift-songs/blob/db5f6cd7dfdbaa55e4b67eb369579caef880515a/keyphrases.png?raw=true" alt="Key Phrases Chart">
+            
+            <h3>Average Sentiment Scores by Albums</h3>
+            <p>
+               This figure effectively shows the time development of sentiments in Taylor's songs. From the above graph, one can intuit that *Red* is her most upbeat album, while *Midnight* is more sombre. It is interesting to realize from the graph that 'other' songs, which means any songs not from all the above albums, are on average uplifted since lots of them are for particular usages, like a particular SNL monologue, or for Ellen's show.
+
+Moreover, it is so interesting to trace the development of Taylor in songwriting. While at the beginning of her career, she used to create more positive songs, recent years reveal a change in tone that follows her transition from country to pop music. This tells how an artist is able to grow and get more mature, which can reveal something about the creative journey of an artist.
+            </p>
+            <img src="https://github.com/quibes/taylor-swift-songs/blob/db5f6cd7dfdbaa55e4b67eb369579caef880515a/average%20sentiment.png?raw=true" alt="Average Sentiment Scores by Albums">
+
+            <h3>Top 10 Positive Songs</h3>
+            <p>
+                The following visualization shows the top 10 most positive songs by Taylor Swift, according to Comprehend analysis. Many of these tracks focus on sentimentality and positivity, often addressing themes of personal growth, resilience, or moments of joy.
+Albums Fearless and Lover dominate the list.             </p>
+            <img src="https://github.com/quibes/taylor-swift-songs/blob/db5f6cd7dfdbaa55e4b67eb369579caef880515a/10positive.png?raw=true" alt="Top 10 Positive Songs Chart">
+
+            <h3>Top 10 Negative Songs</h3>
+            <p>
+                The following visualization shows the top 10 most negative songs by Taylor Swift, according to Comprehend analyisis. Many of the most negative tracks roots in albums where Taylor explored heartbreak (Fearless and Red) or social critique (The Tortured Poets Department).
+ While some songs captured negativity very precisely - Smallest Man Who Ever Lived could be one of the most devastating songs for all Taylor's career, others, like Mean, even though they are written about negative events, overall have a positive narrative.
+            </p>
+            <img src="https://github.com/quibes/taylor-swift-songs/blob/db5f6cd7dfdbaa55e4b67eb369579caef880515a/10negative.png?raw=true" alt="Top 10 Negative Songs Chart">
+        </section>
+        <section>
+            <h2>Cost Breakdown</h2>
+            <p>
+                Using AWS services for this project was cost-effective due to the free tier and minimal data size:
+            </p>
+            <ul>
+                <li>AWS Comprehend: 100 API calls for sentiment and key phrase detection (≈$0.50).</li>
+                <li>AWS S3: Storage for 200 files (≈$0.01).</li>
+            </ul>
+            <p>Total Cost: ≈$0.51</p>
+        </section>
+        <section>
+            <h2>Conclusion</h2>
+            <p>
+                This analysis underlines the versatility of Taylor Swift as a storyteller and her deep connection with her audience. From the highs of love and joy to heartbreak and critique, her songs capture emotions that are relatable to people across generations. AWS AI services allowed to structure the data-driven approach to uncover these layers, even though human perceptance of the meaning of the songs are different from data-driven. 
+                
+As an artist, Taylor Swift shows how one can grow with their audience, embracing change and complexity while remaining true to core themes. This is a journey that speaks not only to her talent but also to the transformative power of music and storytelling.
+
+                This project has shown how AWS AI services can transform raw text data into actionable insights, be it understanding the emotional feel of songs or recurring themes. The approach can be applied to other artists, genres, or even business use cases like customer feedback analysis.
+            </p>
+        </section>
+    </div>
+</body>
+</html>
